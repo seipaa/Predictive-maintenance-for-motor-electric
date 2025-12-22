@@ -1,4 +1,4 @@
-# Mechasense - Smart Motor Monitoring System
+# Mechasense - Digital-twin-predictive-maintenance-for-motor-electric
 
 **IoT-based Predictive Maintenance for AC Motors**
 
@@ -434,5 +434,5 @@ This project is for educational/demo purposes. Modify as needed for your use cas
 
 ---
 
-**Mechasense** - _Predictive Intelligence for Industrial Motors_ 🔧⚡
+**Mechasense** - _Digital-twin-predictive-maintenance-for-motor-electric_ 🔧⚡
 
