@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { formatDate } from "@/lib/utils";
 import { symptoms } from "@/lib/expert-system/symptoms";
-import { diagnoseForward } from "@/lib/expert-system/diagnosisEngine";
+import {
+  diagnoseForward,
+  calculateDiagnosisSummary
+} from "@/lib/expert-system/diagnosisEngine";
 
 /* =======================
    TYPES
@@ -60,6 +63,8 @@ export default function AICenterPage() {
   const runDiagnosis = () => {
     setResults(diagnoseForward(answers));
   };
+
+  const summary = calculateDiagnosisSummary(results);
 
   /* =======================
      UI HELPERS
@@ -154,10 +159,26 @@ export default function AICenterPage() {
                 <p className="mt-2 font-medium">{r.damage}</p>
                 <p className="text-sm text-gray-600">{r.solution}</p>
                 <p className="text-sm font-semibold mt-1">
-                  Tingkat Keyakinan: {(r.confidence * 1).toFixed(1)} / 1
+                  CF Gejala: {r.confidence.toFixed(2)} / 1
                 </p>
               </div>
             ))}
+
+            {/* ===== SUMMARY ===== */}
+            {summary && (
+              <div className="mt-6 p-4 border rounded bg-blue-50">
+                <h4 className="font-bold text-lg mb-1">
+                  Kesimpulan Akhir
+                </h4>
+
+               
+
+                <p className="text-md mt-1">
+                  <strong>{summary.label}</strong> dengan nilai{" "}
+                  <strong>{summary.percent}%</strong>
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,5 +1,3 @@
-// lib/expert-system/diagnosisEngine.ts
-
 import { rules } from "./rules";
 import { symptoms } from "./symptoms";
 import { FuzzyLevel, fuzzyLevelToValue } from "./fuzzyMembership";
@@ -15,9 +13,56 @@ export interface DiagnosisResult {
   confidence: number; // 0.0 - 1.0
 }
 
-export type UserAnswer = FuzzyLevel;
+export interface DiagnosisSummary {
+  cfTotal: number;     // 0 - 10
+  percent: number;     // 0 - 100
+  level: "A" | "B" | "C";
+  label: string;
+}
 
+export type UserAnswer = FuzzyLevel;
 export type UserAnswers = Record<number, UserAnswer>;
+
+/* =======================
+   SUMMARY CALCULATION
+======================= */
+
+export function calculateDiagnosisSummary(
+  results: DiagnosisResult[]
+): DiagnosisSummary | null {
+  if (results.length === 0) return null;
+
+  // Rata-rata CF (0–1)
+  const avgCF =
+    results.reduce((sum, r) => sum + r.confidence, 0) / results.length;
+
+  // Skala 0–10
+  const cfTotal = avgCF * 10;
+
+  // Skala 0–100%
+  const percent = cfTotal * 10;
+
+  let level: "A" | "B" | "C";
+  let label: string;
+
+  if (percent < 40) {
+    level = "A";
+    label = "Ringan";
+  } else if (percent < 70) {
+    level = "B";
+    label = "Sedang";
+  } else {
+    level = "C";
+    label = "Berat";
+  }
+
+  return {
+    cfTotal: Number(cfTotal.toFixed(2)),
+    percent: Number(percent.toFixed(1)),
+    level,
+    label
+  };
+}
 
 /* =======================
    DIAGNOSIS ENGINE
@@ -27,16 +72,14 @@ export function diagnoseForward(
   answers: UserAnswers
 ): DiagnosisResult[] {
 
-  /* =======================
-     1️⃣ HITUNG EVIDENCE CF
-  ======================= */
+  /* ===== 1. HITUNG EVIDENCE ===== */
   const evidenceCF = new Map<number, number>();
 
   for (const symptom of symptoms) {
     const answer = answers[symptom.id];
     if (!answer) continue;
 
-    const cfUser = fuzzyLevelToValue(answer); // 0 / 0.4 / 0.8
+    const cfUser = fuzzyLevelToValue(answer); // 0 / 0.5 / 1
     const cfEvidence = cfUser * symptom.cfExpert;
 
     if (cfEvidence > 0) {
@@ -44,9 +87,7 @@ export function diagnoseForward(
     }
   }
 
-  /* =======================
-     2️⃣ PROSES AND RULE (PRIORITAS)
-  ======================= */
+  /* ===== 2. AND RULE (PRIORITAS) ===== */
   const andResults: DiagnosisResult[] = [];
 
   for (const rule of rules) {
@@ -60,7 +101,6 @@ export function diagnoseForward(
       }
     }
 
-    // FULL MATCH AND
     if (cfList.length === rule.symptoms.length) {
       const ruleCF = Math.min(...cfList);
 
@@ -75,18 +115,15 @@ export function diagnoseForward(
     }
   }
 
-  // Jika AND rule ditemukan → ambil yang PALING SPESIFIK
   if (andResults.length > 0) {
     const priority = { C: 3, B: 2, A: 1 };
 
     return andResults
       .sort((a, b) => priority[b.level] - priority[a.level])
-      .slice(0, 1); // ambil 1 paling kuat
+      .slice(0, 1);
   }
 
-  /* =======================
-     3️⃣ PROSES OR RULE (FALLBACK)
-  ======================= */
+  /* ===== 3. OR RULE ===== */
   const orResults: DiagnosisResult[] = [];
 
   for (const rule of rules) {
@@ -114,9 +151,6 @@ export function diagnoseForward(
     }
   }
 
-  /* =======================
-     4️⃣ SORT LEVEL PRIORITY
-  ======================= */
   const priority = { C: 3, B: 2, A: 1 };
 
   return orResults.sort(
