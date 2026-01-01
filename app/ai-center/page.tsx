@@ -1,12 +1,10 @@
-'use client';
+"use client";
 
 import { useState } from "react";
 import { formatDate } from "@/lib/utils";
 import { symptoms } from "@/lib/expert-system/symptoms";
-import {
-  diagnoseForward,
-  calculateDiagnosisSummary
-} from "@/lib/expert-system/diagnosisEngine";
+import { rules } from "@/lib/expert-system/rules";
+import { fuzzyLevelToValue } from "@/lib/expert-system/fuzzyMembership";
 
 /* =======================
    TYPES
@@ -18,18 +16,25 @@ interface MLPredictionResult {
   timestamp: string;
 }
 
+type UserAnswer = "Tidak" | "Jarang" | "Ya";
+
 interface DiagnosisResult {
+  id: string;
   level: "A" | "B" | "C";
   damage: string;
   solution: string;
-  confidence: number;
+  cfRule: number;
 }
 
-type UserAnswer = "Ya" | "Jarang" | "Tidak";
-
 /* =======================
-   COMPONENT
+   LEVEL SCORE
 ======================= */
+const levelScore: Record<"A" | "B" | "C", number> = {
+  A: 40,
+  B: 70,
+  C: 100,
+};
+
 export default function AICenterPage() {
   /* ===== ML ===== */
   const [mlResult, setMlResult] = useState<MLPredictionResult | null>(null);
@@ -38,6 +43,10 @@ export default function AICenterPage() {
   /* ===== EXPERT SYSTEM ===== */
   const [answers, setAnswers] = useState<Record<number, UserAnswer>>({});
   const [results, setResults] = useState<DiagnosisResult[]>([]);
+  const [conclusion, setConclusion] = useState<{
+    percent: number;
+    label: string;
+  } | null>(null);
 
   /* =======================
      ML PREDICTION
@@ -45,9 +54,9 @@ export default function AICenterPage() {
   const runMLPrediction = async () => {
     setIsLoadingML(true);
     try {
-      const res = await fetch('/api/ml/predict', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+      const res = await fetch("/api/ml/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
       });
       setMlResult(await res.json());
     } catch (err) {
@@ -56,15 +65,6 @@ export default function AICenterPage() {
       setIsLoadingML(false);
     }
   };
-
-  /* =======================
-     EXPERT SYSTEM
-  ======================= */
-  const runDiagnosis = () => {
-    setResults(diagnoseForward(answers));
-  };
-
-  const summary = calculateDiagnosisSummary(results);
 
   /* =======================
      UI HELPERS
@@ -80,17 +80,98 @@ export default function AICenterPage() {
       : "bg-red-100 text-red-800";
 
   /* =======================
+     DIAGNOSIS (LOGIKA BARU)
+  ======================= */
+  const runDiagnosis = () => {
+    const output: DiagnosisResult[] = [];
+
+    rules.forEach((rule) => {
+      const cfValues: number[] = [];
+
+      rule.symptoms.forEach((sid) => {
+        const userAnswer = answers[sid];
+        const expertCF = symptoms.find((s) => s.id === sid)?.cfExpert;
+
+        if (userAnswer && expertCF !== undefined) {
+          const userCF = fuzzyLevelToValue(userAnswer);
+          cfValues.push(userCF * expertCF);
+        }
+      });
+
+      if (cfValues.length === 0) return;
+
+      const cfRule =
+        rule.operator === "OR"
+          ? Math.max(...cfValues)
+          : Math.min(...cfValues);
+
+      if (cfRule > 0) {
+        output.push({
+          id: rule.id,
+          level: rule.level,
+          damage: rule.damage,
+          solution: rule.solution,
+          cfRule: Number(cfRule.toFixed(2)),
+        });
+      }
+    });
+
+    setResults(output);
+    calculateConclusion(output);
+  };
+
+  /* =======================
+     KESIMPULAN (LEVEL)
+  ======================= */
+  const calculateConclusion = (data: DiagnosisResult[]) => {
+  if (data.length === 0) {
+    setConclusion(null);
+    return;
+  }
+
+  const totalScore = data.reduce(
+    (sum, r) => sum + levelScore[r.level],
+    0
+  );
+
+  const percent = (totalScore / (data.length * 100)) * 100;
+
+  let label: string;
+
+  if (percent <= 40) {
+    label = "Ringan";
+  } else if (percent <= 70) {
+    label = "Sedang";
+  } else {
+    label = "Berat";
+  }
+
+  setConclusion({
+    percent: Number(percent.toFixed(1)),
+    label,
+  });
+};
+
+
+  /* =======================
      UI
   ======================= */
   return (
     <div className="container mx-auto p-6 space-y-8">
 
-      {/* ===== ML ===== */}
+      {/* ===== ML HEALTH PREDICTION (ATAS) ===== */}
       <div className="card">
-        <h2 className="text-xl font-bold mb-3">ML Health Prediction</h2>
-        <button onClick={runMLPrediction} className="btn-primary mb-2">
+        <h2 className="text-xl font-bold mb-3">
+          ML Health Prediction
+        </h2>
+
+        <button
+          onClick={runMLPrediction}
+          className="btn-primary mb-2"
+        >
           {isLoadingML ? "Running..." : "Run Prediction"}
         </button>
+
         {mlResult && (
           <p className="text-sm text-gray-600">
             Updated: {formatDate(mlResult.timestamp)}
@@ -98,14 +179,14 @@ export default function AICenterPage() {
         )}
       </div>
 
-      {/* ===== EXPERT SYSTEM ===== */}
+      {/* ===== SISTEM PAKAR ===== */}
       <div className="card">
         <h2 className="text-2xl font-bold mb-4">
           Sistem Pakar Diagnosis Motor
         </h2>
 
         <div className="space-y-4">
-          {symptoms.map(symptom => (
+          {symptoms.map((symptom) => (
             <div
               key={symptom.id}
               className="p-4 border rounded bg-gray-50"
@@ -115,22 +196,27 @@ export default function AICenterPage() {
               </p>
 
               <div className="flex gap-4">
-                {(["Tidak", "Jarang", "Ya"] as UserAnswer[]).map(option => (
-                  <label key={option} className="flex items-center gap-1">
-                    <input
-                      type="radio"
-                      name={`symptom-${symptom.id}`}
-                      checked={answers[symptom.id] === option}
-                      onChange={() =>
-                        setAnswers(prev => ({
-                          ...prev,
-                          [symptom.id]: option
-                        }))
-                      }
-                    />
-                    {option}
-                  </label>
-                ))}
+                {(["Tidak", "Jarang", "Ya"] as UserAnswer[]).map(
+                  (option) => (
+                    <label
+                      key={option}
+                      className="flex items-center gap-1"
+                    >
+                      <input
+                        type="radio"
+                        name={`symptom-${symptom.id}`}
+                        checked={answers[symptom.id] === option}
+                        onChange={() =>
+                          setAnswers((prev) => ({
+                            ...prev,
+                            [symptom.id]: option,
+                          }))
+                        }
+                      />
+                      {option}
+                    </label>
+                  )
+                )}
               </div>
             </div>
           ))}
@@ -143,46 +229,49 @@ export default function AICenterPage() {
           Jalankan Diagnosis
         </button>
 
-        {/* ===== RESULTS ===== */}
+        {/* ===== HASIL ===== */}
         {results.length > 0 && (
           <div className="mt-6 space-y-4">
             <h3 className="text-xl font-bold">
               Hasil Diagnosis
             </h3>
 
-            {results.map((r, i) => (
-              <div key={i} className="p-4 border rounded">
-                <span className={`px-3 py-1 rounded ${getLevelColor(r.level)}`}>
+            {results.map((r) => (
+              <div key={r.id} className="p-4 border rounded">
+                <span
+                  className={`px-3 py-1 rounded ${getLevelColor(
+                    r.level
+                  )}`}
+                >
                   {getLevelLabel(r.level)}
                 </span>
 
                 <p className="mt-2 font-medium">{r.damage}</p>
-                <p className="text-sm text-gray-600">{r.solution}</p>
+                <p className="text-sm text-gray-600">
+                  {r.solution}
+                </p>
+
                 <p className="text-sm font-semibold mt-1">
-                  CF Gejala: {r.confidence.toFixed(2)} / 1
+                  CF Rule: {r.cfRule} / 1
                 </p>
               </div>
             ))}
 
-            {/* ===== SUMMARY ===== */}
-            {summary && (
+            {conclusion && (
               <div className="mt-6 p-4 border rounded bg-blue-50">
                 <h4 className="font-bold text-lg mb-1">
                   Kesimpulan Akhir
                 </h4>
 
-               
-
                 <p className="text-md mt-1">
-                  <strong>{summary.label}</strong> dengan nilai{" "}
-                  <strong>{summary.percent}%</strong>
+                  <strong>{conclusion.label}</strong> dengan nilai{" "}
+                  <strong>{conclusion.percent}%</strong>
                 </p>
               </div>
             )}
           </div>
         )}
       </div>
-
     </div>
   );
 }

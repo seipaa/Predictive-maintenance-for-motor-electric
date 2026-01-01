@@ -33,7 +33,7 @@ export function fuzzyDiagnose(criteria: FuzzyCriteria[]): FuzzyDiagnosisResult[]
   for (const rule of rules) {
     let ruleActivation = 0; // Tingkat aktivasi rule (fuzzy confidence)
 
-    if (rule.operator === "AND") {
+    if (rule.operator === "OR") {
       // Untuk AND: semua gejala harus ada, gunakan MIN (ambil nilai terkecil)
       const symptomIdsInCriteria = criteria.map(c => c.symptomId);
       const allSymptomsPresent = rule.symptoms.every(id => symptomIdsInCriteria.includes(id));
