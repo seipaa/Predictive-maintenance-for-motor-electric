@@ -9,13 +9,13 @@
 #include <FirebaseESP32.h>
 
 /* =======================
-   WIFI CONFIG
+      WIFI CONFIG
    ======================= */
 #define WIFI_SSID     " "
 #define WIFI_PASSWORD " "
 
 /* =======================
-   FIREBASE CONFIG
+     FIREBASE CONFIG
    ======================= */
 // PASTIKAN: Tanpa "https://" dan tanpa "/" di akhir
 #define FIREBASE_HOST "test-mode-62bda-default-rtdb.firebaseio.com"
@@ -43,9 +43,9 @@ DallasTemperature ds18b20(&oneWire);
 #define DUST_PIN 34
 #define LED_PIN  4
 
-/* =======================
-   VARIABLES
-   ======================= */
+/*  =======================
+          VARIABLES
+    ======================= */
 float dustOffset = 0.25;
 float axOffset = 0, ayOffset = 0, azOffset = 0;
 #define SAMPLE_COUNT 500
@@ -88,7 +88,7 @@ void calibrateDustSensor() {
 }
 
 /* =======================
-   SETUP
+          SETUP
    ======================= */
 void setup() {
   Serial.begin(115200);
