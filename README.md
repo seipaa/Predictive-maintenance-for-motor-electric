@@ -310,5 +310,5 @@ Student of Mechatronics and Artificial Intelligence at University of Education I
 This project is for educational purposes.
 
 ---
-
-**Mechasense** - Predictive Maintenance for Electric Motor
+ 
+**Mechasense** - Predictive Maintenance for Electric Motor 
