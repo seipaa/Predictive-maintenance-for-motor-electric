@@ -166,7 +166,8 @@ export function useRealtimeSensorData(motorId: string) {
         return Math.max(0, operatingHours);
       };
 
-      /* ===== FUNGSI HITUNG ENERGI HARIAN (kWh) ===== */
+
+        /* ===== FUNGSI HITUNG ENERGI HARIAN (kWh) ===== */
       // Menghitung energi dari: Daya (Watt) = Voltage × Current × Power Factor
       // Energi (kWh) = Daya (Watt) × Waktu (jam) / 1000
       const calculateDailyEnergyKwh = (reading: SensorReading | null): number => {
@@ -460,6 +461,7 @@ export function useRealtimeSensorData(motorId: string) {
       setIsConnected(false);
       return;
     }
+     
 
     // Initialize last reset date
     if (!lastResetDateRef.current) {
