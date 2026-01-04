@@ -85,7 +85,7 @@ void loop() {
   float loadIndex = constrain((current / 10.0f) * 100.0f, 0.0f, 100.0f);
   float currentFreqRatio = (freq > 0) ? current / freq : 0.0f;
 
-  /* ========= TEMPERATURE ========= */
+  /* ======== TEMPERATURE ======== */
   float ambientTemp = mlx.readAmbientTempC();
   float motorTemp   = mlx.readObjectTempC();
 
