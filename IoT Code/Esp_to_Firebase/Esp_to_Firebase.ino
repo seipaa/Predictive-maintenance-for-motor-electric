@@ -9,13 +9,13 @@
 #include <FirebaseESP32.h>
 
 /* =======================
-   WIFI CONFIG
+       WIFI CONFIG
    ======================= */
 #define WIFI_SSID     " "
 #define WIFI_PASSWORD " "
 
 /* =======================
-   FIREBASE CONFIG
+      FIREBASE CONFIG
    ======================= */
 // PASTIKAN: Tanpa "https://" dan tanpa "/" di akhir
 #define FIREBASE_HOST "test-mode-62bda-default-rtdb.firebaseio.com"
